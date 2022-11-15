@@ -1,23 +1,14 @@
 package com.example.galaxywatchgps;
 
-import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.os.Bundle;
-import android.widget.TextView;
 
-import com.example.galaxywatchgps.databinding.ActivityMainBinding;
-
-public class MainActivity extends Activity {
-
-    private TextView mTextView;
-    private ActivityMainBinding binding;
+public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        mTextView = binding.text;
+        setContentView(R.layout.activity_main);
     }
 }
