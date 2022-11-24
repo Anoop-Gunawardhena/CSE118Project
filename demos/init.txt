@@ -1,1 +1,2 @@
-Nothing
+For the video I demonstrate how a pair of pubnub scriptscan be used to remotely trigger the pi to start recording sound,
+I concatenaoted the results of recording into a file, along with my mathematical analysis of if the sound was likely to originate from the left than the right. This is included as a probability.
