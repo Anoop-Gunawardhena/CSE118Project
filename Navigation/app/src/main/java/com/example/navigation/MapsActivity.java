@@ -117,33 +117,7 @@ public class MapsActivity extends AppCompatActivity implements
         /**
          * PUBNUP CONNECTION SETUP
          */
-        try {
-
-            System.out.println("Reached PubNub Code");
-            // Instantiate PubNub
-            pubnub = createPubNubConnection();
-
-            // Add subscribeCallBack listener to pubnub client
-            SubscribeCallback subscribeCallback = createSubscribeCallback();
-            pubnub.addListener(subscribeCallback);
-
-            System.out.println("Added PubNub subscribe callback");
-
-            // Publish CROSSWALK_DETECTED message
-            pubnub.publish().message(CROSSWALK_DETECTED).channel(laurenzChannelName).async(createPNCallback());
-
-            System.out.println("Published message to channel");
-
-            // Subscribe to androidToVoiceflowChannel to receive CROSSWALK_DETECTED message
-            pubnub.subscribe().channels(Arrays.asList(laurenzChannelName)).execute();
-
-            System.out.println("Subscribed to channel to get message");
-
-        } catch (PubNubException e) {
-            System.out.println("*** EXCEPTION IN PUBNUB CONNECTION ***");
-            e.printStackTrace();
-        }
-
+        pubnubMain();
     }
 
     /**
@@ -186,40 +160,42 @@ public class MapsActivity extends AppCompatActivity implements
          * GEOFENCING SETUP
          */
         // Instantiate Geofencing API client
-//        geofencingClient = LocationServices.getGeofencingClient(this);
+        geofencingClient = LocationServices.getGeofencingClient(this);
 
         // Add a geofence to geofenceList
-//        geofenceList.add(new Geofence.Builder()
-//                // Set the request ID of the geofence. This is a string to identify this
-//                // geofence.
-//                .setRequestId(CSE_CROSSWALK.name)
-//
-//                .setCircularRegion(
-//                        CSE_CROSSWALK.latLng.latitude,
-//                        CSE_CROSSWALK.latLng.longitude,
-//                        Constants.GEOFENCE_RADIUS_IN_METERS
-//                )
-//                .setExpirationDuration(Constants.GEOFENCE_EXPIRATION_IN_MILLISECONDS)
-//                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
-//                        Geofence.GEOFENCE_TRANSITION_EXIT)
-//                .build());
+        geofenceList.add(new Geofence.Builder()
+            // Set the request ID of the geofence. This is a string to identify this
+            // geofence.
+            .setRequestId(CSE_CROSSWALK.name)
 
-        // Add geofences in geofenceList to geofencing Client to publish to application geofencing API
-//        geofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
-//                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-//                    @Override
-//                    public void onSuccess(Void aVoid) {
-//                        // Geofences added
-//                        // ...
-//                    }
-//                })
-//                .addOnFailureListener(this, new OnFailureListener() {
-//                    @Override
-//                    public void onFailure(@NonNull Exception e) {
-//                        // Failed to add geofences
-//                        // ...
-//                    }
-//                });
+            .setCircularRegion(
+                    CSE_CROSSWALK.latLng.latitude,
+                    CSE_CROSSWALK.latLng.longitude,
+                    Constants.GEOFENCE_RADIUS_IN_METERS
+            )
+            .setExpirationDuration(Constants.GEOFENCE_EXPIRATION_IN_MILLISECONDS)
+            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
+                    Geofence.GEOFENCE_TRANSITION_EXIT)
+            .build());
+
+        // Add Geofences in geofenceList to Geofencing Client to publish to application geofencing API
+        geofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
+            .addOnSuccessListener(this, new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    // Geofences added
+                    // ...
+                    System.out.println("SUCCESS: Geofences added successfully to Geofencing Client to publish to application geofencing API");
+                }
+            })
+            .addOnFailureListener(this, new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    // Failed to add geofences
+                    // ...
+                    System.out.println("FAILURE: failed to add Geofences to Geofencing Client to publish to application geofencing API");
+                }
+            });
 
     }
 
@@ -231,29 +207,33 @@ public class MapsActivity extends AppCompatActivity implements
      * Specifies geofences and initial triggers
      * @return
      */
-//    private GeofencingRequest getGeofencingRequest() {
-//        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
-//        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
-//        builder.addGeofences(geofenceList);
-//        return builder.build();
-//    }
+    private GeofencingRequest getGeofencingRequest() {
+
+        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
+        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
+        builder.addGeofences(geofenceList);
+        return builder.build();
+
+    }
 
     /**
      * Defines a broadcast receiver for geofence transitions
      * @return
      */
-//    private PendingIntent getGeofencePendingIntent() {
-//        // Reuse the PendingIntent if we already have it.
-//        if (geofencePendingIntent != null) {
-//            return geofencePendingIntent;
-//        }
-//        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
-//        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when
-//        // calling addGeofences() and removeGeofences().
-//        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.
-//                FLAG_UPDATE_CURRENT);
-//        return geofencePendingIntent;
-//    }
+    private PendingIntent getGeofencePendingIntent() {
+
+        // Reuse the PendingIntent if we already have it.
+        if (geofencePendingIntent != null) {
+            return geofencePendingIntent;
+        }
+
+        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
+
+        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling addGeofences() and removeGeofences().
+        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        return geofencePendingIntent;
+
+    }
 
     /**
      * LOCATIONS PERMISSIONS HELPER METHODS
@@ -337,6 +317,37 @@ public class MapsActivity extends AppCompatActivity implements
     /**
      * PUBNUB HELPER METHODS
      */
+
+
+    public void pubnubMain() {
+
+        try {
+
+            /**
+             * PUBNUB CONNECTION SETUP
+             */
+            // Instantiate PubNub
+            pubnub = createPubNubConnection();
+
+            // Add subscribeCallBack listener to pubnub client
+            SubscribeCallback subscribeCallback = createSubscribeCallback();
+            pubnub.addListener(subscribeCallback);
+
+            /**
+             * PUBNUB PUBLISH/SUBSCRIBE
+             */
+            // Publish CROSSWALK_DETECTED message
+            pubnub.publish().message(CROSSWALK_DETECTED).channel(laurenzChannelName).async(createPNCallback());
+
+            // Subscribe to androidToVoiceflowChannel to receive CROSSWALK_DETECTED message
+            pubnub.subscribe().channels(Arrays.asList(laurenzChannelName)).execute();
+
+        } catch (PubNubException e) {
+            System.out.println("*** EXCEPTION IN PUBNUB CONNECTION ***");
+            e.printStackTrace();
+        }
+
+    }
 
     /**
      * Helper method to create PubNub Connection object which establishes connection to PubNub
