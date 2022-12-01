@@ -1,9 +1,13 @@
 package com.example.pubnubapplication;
 
+
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+
+import android.speech.tts.TextToSpeech;
+//import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
@@ -32,6 +36,7 @@ import com.pubnub.api.models.consumer.pubsub.message_actions.PNMessageActionResu
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Locale;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
@@ -42,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private PNConfiguration pnConfiguration;
     private PubNub pubNub;
 
+    TextToSpeech tts1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
@@ -49,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
             pnConfiguration.setSubscribeKey("sub-c-abee09f7-35bc-4433-b4ba-ba12da2c5028");
             pnConfiguration.setPublishKey("pub-c-f30c3204-e2ee-4907-9d2a-57f68b84a3e9");
             pubNub = new PubNub(pnConfiguration);
+
+
 
             SubscribeCallback subscribeCallback = new SubscribeCallback() {
                 @Override
@@ -68,8 +77,30 @@ public class MainActivity extends AppCompatActivity {
                 public void message(PubNub pubnub, PNMessageResult message) {
                     System.out.println(message.getMessage());
                     // Let the Google Assistant ouput the message as soon as it arrives
-                    // Pseudo code: GoogleAssistant.speak(message.getMessage())
-
+                    // Pseudo code: GoogleAssistant.speak(message.getMessage()
+                    tts1 = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+                        @Override
+                        public void onInit(int ttsStatus) {
+                            if(ttsStatus != TextToSpeech.ERROR) {
+                                tts1.setLanguage(Locale.US);
+                                System.out.println("I have initialized!");
+                                String toSpeak = message.getMessage().toString();
+                                tts1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null, null);
+                            }
+                            else
+                            {
+                                System.out.println(ttsStatus);
+                            }
+                        }
+                        public void onPause(){
+                            if(tts1 != null){
+                                tts1.stop();
+                                tts1.shutdown();
+                            }
+                        }
+                    }, "com.google.android.tts");
+                    //String toSpeak = message.getMessage().toString();
+                    //tts1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null, null);
                 }
 
                 @Override
