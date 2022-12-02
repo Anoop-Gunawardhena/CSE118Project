@@ -11,7 +11,7 @@ import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.BroadcastReceiver;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.widget.Toast;
@@ -24,33 +24,15 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.navigation.databinding.ActivityMapsBinding;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.pubnub.api.PNConfiguration;
-import com.pubnub.api.PubNub;
-import com.pubnub.api.PubNubException;
-import com.pubnub.api.callbacks.PNCallback;
-import com.pubnub.api.callbacks.SubscribeCallback;
-import com.pubnub.api.enums.PNStatusCategory;
-import com.pubnub.api.models.consumer.PNPublishResult;
-import com.pubnub.api.models.consumer.PNStatus;
-import com.pubnub.api.models.consumer.objects_api.channel.PNChannelMetadataResult;
-import com.pubnub.api.models.consumer.objects_api.membership.PNMembershipResult;
-import com.pubnub.api.models.consumer.objects_api.uuid.PNUUIDMetadataResult;
-import com.pubnub.api.models.consumer.pubsub.PNMessageResult;
-import com.pubnub.api.models.consumer.pubsub.PNPresenceEventResult;
-import com.pubnub.api.models.consumer.pubsub.PNSignalResult;
-import com.pubnub.api.models.consumer.pubsub.files.PNFileEventResult;
-import com.pubnub.api.models.consumer.pubsub.message_actions.PNMessageActionResult;
-
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class MapsActivity extends AppCompatActivity implements
@@ -71,31 +53,12 @@ public class MapsActivity extends AppCompatActivity implements
     // Marker fields
     private LocEntry CSE_BUILDING = new LocEntry("CSE_BUILDING", new LatLng(32.881809, -117.233460));
     private LocEntry CSE_CROSSWALK = new LocEntry("CSE_CROSSWALK", new LatLng(32.881854, -117.233143));
+    private LocEntry GOOGLEPLEX = new LocEntry("GOOGLEPLEX", new LatLng(37.424041076107144, -122.08142909056079));
 
     // Geofencing fields
     private GeofencingClient geofencingClient;
     private PendingIntent geofencePendingIntent;
     private List<Geofence> geofenceList = new ArrayList<>();
-
-    /** PUBNUB INSTANCE VARIABLES **/
-    // PubNub connection instance field
-    private PubNub pubnub;
-
-    // Channel detail fields
-    private final String UUID = "androidPubnub";
-
-    // Rick Channel details
-    private final String rickChannelName = "androidToVoiceflowChannel";
-    private final String rickPublishKey = "pub-c-985fb8a7-d30c-40b9-8532-77173422dd55";
-    private final String rickSubscribeKey = "sub-c-b3862175-ffc5-4c24-9a0b-f238c09b2d26";
-
-    // Laurenz Channel details
-    private final String laurenzChannelName = "Channel-Barcelona";
-    private final String laurenzPublishKey = "pub-c-f30c3204-e2ee-4907-9d2a-57f68b84a3e9";
-    private final String laurenzSubscribeKey = "sub-c-abee09f7-35bc-4433-b4ba-ba12da2c5028";
-
-    // PubNub messages fields
-    private final String CROSSWALK_DETECTED = "crosswalk detected";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,11 +76,6 @@ public class MapsActivity extends AppCompatActivity implements
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-
-        /**
-         * PUBNUP CONNECTION SETUP
-         */
-        pubnubMain();
     }
 
     /**
@@ -137,107 +95,74 @@ public class MapsActivity extends AppCompatActivity implements
 
         System.out.println("Adding markers");
 
-        // Set initial map position to be at CSE Building
-        mMap.addMarker(new MarkerOptions().position(CSE_BUILDING.latLng).title(CSE_BUILDING.name));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(CSE_BUILDING.latLng));
+        /**
+         * MARKER SETUP
+         */
+        addMarkersMain();
 
-        // Mark CSE Crosswalk
-        mMap.addMarker(new MarkerOptions().position(CSE_CROSSWALK.latLng).title(CSE_CROSSWALK.name));
-
-        mMap.moveCamera(CameraUpdateFactory.zoomTo(19));
-
-        System.out.println("Finished adding markers. Geofencing");
+        System.out.println("Finished adding markers. My Location Setup");
 
         /**
          * MY LOCATION SETUP
          */
-        // My Location Layer setup: Get current user location
-        mMap.setOnMyLocationButtonClickListener(this);
-        mMap.setOnMyLocationClickListener(this);
-        enableMyLocation();
+        myLocationSetupMain();
+
+        System.out.println("My Location enabled. Geofencing");
 
         /**
          * GEOFENCING SETUP
          */
-        // Instantiate Geofencing API client
-        geofencingClient = LocationServices.getGeofencingClient(this);
-
-        // Add a geofence to geofenceList
-        geofenceList.add(new Geofence.Builder()
-            // Set the request ID of the geofence. This is a string to identify this
-            // geofence.
-            .setRequestId(CSE_CROSSWALK.name)
-
-            .setCircularRegion(
-                    CSE_CROSSWALK.latLng.latitude,
-                    CSE_CROSSWALK.latLng.longitude,
-                    Constants.GEOFENCE_RADIUS_IN_METERS
-            )
-            .setExpirationDuration(Constants.GEOFENCE_EXPIRATION_IN_MILLISECONDS)
-            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
-                    Geofence.GEOFENCE_TRANSITION_EXIT)
-            .build());
-
-        // Add Geofences in geofenceList to Geofencing Client to publish to application geofencing API
-        geofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
-            .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
-                    // Geofences added
-                    // ...
-                    System.out.println("SUCCESS: Geofences added successfully to Geofencing Client to publish to application geofencing API");
-                }
-            })
-            .addOnFailureListener(this, new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    // Failed to add geofences
-                    // ...
-                    System.out.println("FAILURE: failed to add Geofences to Geofencing Client to publish to application geofencing API");
-                }
-            });
-
+        geofenceSetupMain();
     }
 
     /**
-     * GEOFENCING HELPER METHODS
+     * MARKER SETUP HELPER METHODS
      */
 
     /**
-     * Specifies geofences and initial triggers
-     * @return
+     * Add Markers Main Helper Method
      */
-    private GeofencingRequest getGeofencingRequest() {
+    private void addMarkersMain() {
 
-        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
-        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
-        builder.addGeofences(geofenceList);
-        return builder.build();
+        // 1. Add all markers to map
+        mMap.addMarker(new MarkerOptions().position(CSE_BUILDING.latLng).title(CSE_BUILDING.name));
+        mMap.addMarker(new MarkerOptions().position(CSE_CROSSWALK.latLng).title(CSE_CROSSWALK.name));
+        mMap.addMarker(new MarkerOptions().position(GOOGLEPLEX.latLng).title(GOOGLEPLEX.name));
+
+        // 2. Center camera on CSE_BUILDING marker and set zoom
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(CSE_BUILDING.latLng));
+        mMap.moveCamera(CameraUpdateFactory.zoomTo(18));
 
     }
 
-    /**
-     * Defines a broadcast receiver for geofence transitions
-     * @return
-     */
-    private PendingIntent getGeofencePendingIntent() {
-
-        // Reuse the PendingIntent if we already have it.
-        if (geofencePendingIntent != null) {
-            return geofencePendingIntent;
-        }
-
-        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
-
-        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling addGeofences() and removeGeofences().
-        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        return geofencePendingIntent;
-
-    }
 
     /**
      * LOCATIONS PERMISSIONS HELPER METHODS
      */
+
+    /**
+     * My Location Setup Main Helper Method
+     */
+    private void myLocationSetupMain() {
+
+        mMap.setOnMyLocationButtonClickListener(this);
+        mMap.setOnMyLocationClickListener(this);
+        enableMyLocation();
+
+    }
+
+    @Override
+    public boolean onMyLocationButtonClick() {
+        Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
+        // Return false so that we don't consume the event and the default behavior still occurs
+        // (the camera animates to the user's current position).
+        return false;
+    }
+
+    @Override
+    public void onMyLocationClick(@NonNull Location location) {
+        Toast.makeText(this, "Current location:\n" + location, Toast.LENGTH_LONG).show();
+    }
 
     /**
      * Enables the My Location layer if the fine location permission has been granted.
@@ -248,6 +173,8 @@ public class MapsActivity extends AppCompatActivity implements
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(this, permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, permission.ACCESS_BACKGROUND_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             System.out.println("Location permissions granted. Enabling user location...");
             mMap.setMyLocationEnabled(true);
@@ -258,6 +185,7 @@ public class MapsActivity extends AppCompatActivity implements
         System.out.println("Location permissions not granted. Requesting user for location permissions...");
         PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_FINE_LOCATION, true);
         PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_COARSE_LOCATION, true);
+        PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_BACKGROUND_LOCATION, true);
 
     }
 
@@ -272,7 +200,9 @@ public class MapsActivity extends AppCompatActivity implements
         if (PermissionUtils.isPermissionGranted(permissions, grantResults,
                 Manifest.permission.ACCESS_FINE_LOCATION) || PermissionUtils
                 .isPermissionGranted(permissions, grantResults,
-                        Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                        Manifest.permission.ACCESS_COARSE_LOCATION) || PermissionUtils
+                .isPermissionGranted(permissions, grantResults,
+                        permission.ACCESS_BACKGROUND_LOCATION)) {
             // Enable the my location layer if the permission has been granted.
             enableMyLocation();
         } else {
@@ -300,187 +230,114 @@ public class MapsActivity extends AppCompatActivity implements
                 .newInstance(true).show(getSupportFragmentManager(), "dialog");
     }
 
-    @Override
-    public boolean onMyLocationButtonClick() {
-        Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
-        // Return false so that we don't consume the event and the default behavior still occurs
-        // (the camera animates to the user's current position).
-        return false;
-    }
-
-    @Override
-    public void onMyLocationClick(@NonNull Location location) {
-        Toast.makeText(this, "Current location:\n" + location, Toast.LENGTH_LONG).show();
-    }
-
 
     /**
-     * PUBNUB HELPER METHODS
+     * GEOFENCING HELPER METHODS
      */
 
+    /**
+     * Geofence Setup Main Helper Method
+     */
+    private void geofenceSetupMain() {
 
-    public void pubnubMain() {
+        geofencingClient = LocationServices.getGeofencingClient(this);
 
-        try {
+        // Add Geofences to geofenceList
+        addGeofenceToList(CSE_CROSSWALK, Constants.GEOFENCE_RADIUS_IN_METERS);  // 1. CSE_CROSSWALK Geofence
+//        addGeofenceToList(GOOGLEPLEX, Constants.GEOFENCE_RADIUS_IN_METERS);  // 2. GOOGLEPLEX Geofence
 
-            /**
-             * PUBNUB CONNECTION SETUP
-             */
-            // Instantiate PubNub
-            pubnub = createPubNubConnection();
+        System.out.println("geofenceList: " + geofenceList.toString());
 
-            // Add subscribeCallBack listener to pubnub client
-            SubscribeCallback subscribeCallback = createSubscribeCallback();
-            pubnub.addListener(subscribeCallback);
+        // Add all Geofences to geofencingClient
+        addGeofencesToClient();
 
-            /**
-             * PUBNUB PUBLISH/SUBSCRIBE
-             */
-            // Publish CROSSWALK_DETECTED message
-            pubnub.publish().message(CROSSWALK_DETECTED).channel(laurenzChannelName).async(createPNCallback());
+    }
 
-            // Subscribe to androidToVoiceflowChannel to receive CROSSWALK_DETECTED message
-            pubnub.subscribe().channels(Arrays.asList(laurenzChannelName)).execute();
+    /**
+     * Helper method to add Geofence to geofenceList
+     */
+    private void addGeofenceToList(LocEntry locEntry, float geofenceRadius) {
 
-        } catch (PubNubException e) {
-            System.out.println("*** EXCEPTION IN PUBNUB CONNECTION ***");
-            e.printStackTrace();
+        // Add geofence to geofenceList
+        geofenceList.add(new Geofence.Builder()
+                // Set the request ID of the geofence. This is a string to identify this
+                // geofence.
+                .setRequestId(locEntry.name)
+
+                .setCircularRegion(
+                        locEntry.latLng.latitude,
+                        locEntry.latLng.longitude,
+                        geofenceRadius
+                )
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
+                        Geofence.GEOFENCE_TRANSITION_EXIT)
+                .build());
+
+        // Add visual geofence circle to CSE_CROSSWALK geofence
+        mMap.addCircle(new CircleOptions().center(locEntry.latLng)
+                        .radius(geofenceRadius)
+                        .strokeColor(Color.RED).strokeWidth(4f))
+                .setFillColor(Color.argb(64, 255, 0, 0));
+
+    }
+
+    /**
+     * Helper method to add all Geofences to Geofencing Client
+     */
+    @SuppressLint("MissingPermission")
+    private void addGeofencesToClient() {
+
+        // Add all Geofences in geofenceList to Geofencing Client to publish to application geofencing API
+        geofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
+
+            .addOnSuccessListener(this, new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    System.out.println("onSuccess: Geofences added successfully to Geofencing Client to publish to application geofencing API");
+                }
+            })
+
+            .addOnFailureListener(this, new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    System.out.println("onFailure: ");
+                    System.out.println("Beginning of geofencingClient.addGeofences.onFailure() Exception --- ");
+                    e.printStackTrace();
+                    System.out.println(" --- End of geofencingClient.addGeofences.onFailure() Exception");
+                }
+
+            });
+
+    }
+
+    /**
+     * Specifies geofences and initial triggers
+     */
+    private GeofencingRequest getGeofencingRequest() {
+
+        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
+        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
+        builder.addGeofences(geofenceList);
+        return builder.build();
+
+    }
+
+    /**
+     * Defines a broadcast receiver for geofence transitions
+     */
+    private PendingIntent getGeofencePendingIntent() {
+
+        // Reuse the PendingIntent if we already have it.
+        if (geofencePendingIntent != null) {
+            return geofencePendingIntent;
         }
 
-    }
+        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
 
-    /**
-     * Helper method to create PubNub Connection object which establishes connection to PubNub
-     * Channel
-     * @return
-     */
-    public PubNub createPubNubConnection() throws PubNubException {
-
-        PNConfiguration pnConfiguration = new PNConfiguration(UUID);
-        pnConfiguration.setSubscribeKey(laurenzSubscribeKey);
-        pnConfiguration.setPublishKey(laurenzPublishKey);
-
-        return new PubNub(pnConfiguration);
-
-    }
-
-    /**
-     * create PubNub Subscribe Callback object helper method
-     * @return
-     */
-    public SubscribeCallback createSubscribeCallback() {
-
-        SubscribeCallback subscribeCallback = new SubscribeCallback() {
-            @Override
-            public void status(PubNub pubnub, PNStatus status) {
-
-                if (status.getCategory() == PNStatusCategory.PNUnexpectedDisconnectCategory) {
-                    // This event happens when radio / connectivity is lost
-                    pubnub.reconnect();
-                }
-                else if (status.getCategory() == PNStatusCategory.PNConnectedCategory) {
-                    // Connect event. You can do stuff like publish, and know you'll get it.
-                    // Or just use the connected event to confirm you are subscribed for
-                    // UI / internal notifications, etc
-                    System.out.println("PubNub Android client connected to: " + laurenzChannelName);
-                }
-                else if (status.getCategory() == PNStatusCategory.PNReconnectedCategory) {
-                    // Happens as part of our regular operation. This event happens when
-                    // radio / connectivity is lost, then regained.
-                    System.out.println("PubNub Android client reconnected to: " + laurenzChannelName);
-                }
-                else if (status.getCategory() == PNStatusCategory.PNDecryptionErrorCategory) {
-                    // Handle messsage decryption error. Probably client configured to
-                    // encrypt messages and on live data feed it received plain text.
-                    pubnub.reconnect();
-                }
-
-            }
-
-            @Override
-            public void message(PubNub pubnub, PNMessageResult message) {
-
-                // Handle new message stored in message.message
-                if (message.getChannel() != null) {
-                    // Message has been received on channel group stored in
-                    // message.getChannel()
-                }
-                else {
-                    // Message has been received on channel stored in
-                    // message.getSubscription()
-                }
-
-                String messagePublisher = message.getPublisher();
-                System.out.println("Message publisher: " + messagePublisher);
-                System.out.println("Message Subscription: " + message.getSubscription());
-                System.out.println("Message Channel: " + message.getChannel());
-                System.out.println("Message: " + message.getMessage());
-
-            }
-
-            @Override
-            public void presence(PubNub pubnub, PNPresenceEventResult presence) {
-            }
-
-            @Override
-            public void signal(@NotNull PubNub pubNub, @NotNull PNSignalResult pnSignalResult) {
-            }
-
-            @Override
-            public void uuid(@NotNull PubNub pubNub, @NotNull PNUUIDMetadataResult pnuuidMetadataResult) {
-            }
-
-            @Override
-            public void channel(@NotNull PubNub pubNub, @NotNull PNChannelMetadataResult pnChannelMetadataResult) {
-            }
-
-            @Override
-            public void membership(@NotNull PubNub pubNub, @NotNull PNMembershipResult pnMembershipResult) {
-            }
-
-            @Override
-            public void messageAction(@NotNull PubNub pubNub, @NotNull PNMessageActionResult pnMessageActionResult) {
-            }
-
-            @Override
-            public void file(@NotNull PubNub pubNub, @NotNull PNFileEventResult pnFileEventResult) {
-            }
-
-        };
-
-        return subscribeCallback;
-    }
-
-    /**
-     * create PubNub Callback object helper method
-     * @return
-     */
-    public PNCallback<PNPublishResult> createPNCallback() {
-
-        PNCallback<PNPublishResult> pnCallback = new PNCallback<PNPublishResult>() {
-
-            @Override
-            public void onResponse(PNPublishResult result, PNStatus status) {
-
-                // Check whether request successfully completed or not.
-                if (!status.isError()) {
-                    // Message successfully published to specified channel.
-                    System.out.println("Message successfully published to specified channel");
-                }
-
-                // Request processing failed.
-                else {
-                    // Handle message publish error. Check 'category' property to find out possible issue
-                    // because of which request did fail.
-                    // Request can be resent using: [status retry];
-                    status.retry();
-                }
-
-            }
-
-        };
-
-        return pnCallback;
+        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling addGeofences() and removeGeofences().
+        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        return geofencePendingIntent;
 
     }
 
