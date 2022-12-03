@@ -1,15 +1,27 @@
 package com.example.pubnubapplication;
 
 
+import static android.content.pm.PackageManager.PERMISSION_DENIED;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+
+import android.Manifest;
+import android.content.Intent;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
 import android.speech.tts.TextToSpeech;
 //import android.widget.Toast;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -36,6 +48,7 @@ import com.pubnub.api.models.consumer.pubsub.message_actions.PNMessageActionResu
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Arrays;
 
@@ -47,7 +60,37 @@ public class MainActivity extends AppCompatActivity {
     private PNConfiguration pnConfiguration;
     private PubNub pubNub;
 
+    private SpeechRecognizer speechRecognizer;
+
     TextToSpeech tts1;
+    void output(String toSpeak) {
+        tts1 = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int ttsStatus) {
+                if (ttsStatus != TextToSpeech.ERROR) {
+                    tts1.setLanguage(Locale.US);
+                    //System.out.println("I have initialized!");
+                    tts1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null, null);
+                } else {
+                    System.out.println(ttsStatus);
+                }
+            }
+
+            public void onPause() {
+                if (tts1 != null) {
+                    tts1.stop();
+                    tts1.shutdown();
+                }
+            }
+        }, "com.google.android.tts");
+    }
+
+    void openMic(){
+        final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        speechRecognizer.startListening(speechRecognizerIntent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +100,77 @@ public class MainActivity extends AppCompatActivity {
             pnConfiguration.setPublishKey("pub-c-f30c3204-e2ee-4907-9d2a-57f68b84a3e9");
             pubNub = new PubNub(pnConfiguration);
 
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},1);
 
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                @Override
+                public void onReadyForSpeech(Bundle bundle) {
+                    System.out.println("Ready");
+                }
+
+                @Override
+                public void onBeginningOfSpeech() {
+                    System.out.println("Beginning");
+                }
+
+                @Override
+                public void onRmsChanged(float v) {
+                    System.out.println("Changed");
+                }
+
+                @Override
+                public void onBufferReceived(byte[] bytes) {
+                    System.out.println("Received");
+                }
+
+                @Override
+                public void onEndOfSpeech() {
+                    System.out.println("End");
+                }
+
+                @Override
+                public void onError(int i) {
+                    System.out.println("Error" + i);
+                }
+
+                @Override
+                public void onResults(Bundle bundle) {
+                    ArrayList<String> data = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                    System.out.println(data.get(0));
+                    if (data.get(0).equals("yes")) {
+                        System.out.println("Stop");
+                        speechRecognizer.stopListening();
+                        pubNub.publish()
+                                .message(Arrays.asList("record"))
+                                .channel("Channel-Barcelona")
+                                .async(new PNCallback<PNPublishResult>() {
+                                    @Override
+                                    public void onResponse(PNPublishResult result, PNStatus status) {
+                                        // handle publish result, status always present, result if successful
+                                        // status.isError to see if error happened
+                                        System.out.println("Success sending" + result);
+                                        System.out.println(status);
+                                    }
+                                }); //change yes stuff to send message to pi, create a no thing, implement listening logic from correct message
+                    }
+                    if(data.get(0).equals("no")){
+                        speechRecognizer.stopListening();
+                        output("understood");
+                    }
+                }
+
+                @Override
+                public void onPartialResults(Bundle bundle) {
+
+
+                }
+
+                @Override
+                public void onEvent(int i, Bundle bundle) {
+
+                }
+            });
 
             SubscribeCallback subscribeCallback = new SubscribeCallback() {
                 @Override
@@ -75,30 +188,45 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void message(PubNub pubnub, PNMessageResult message) {
-                    System.out.println(message.getMessage());
+                    System.out.println(message.getMessage().toString());
                     // Let the Google Assistant ouput the message as soon as it arrives
                     // Pseudo code: GoogleAssistant.speak(message.getMessage()
-                    tts1 = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
-                        @Override
-                        public void onInit(int ttsStatus) {
-                            if(ttsStatus != TextToSpeech.ERROR) {
-                                tts1.setLanguage(Locale.US);
-                                System.out.println("I have initialized!");
-                                String toSpeak = message.getMessage().toString();
-                                tts1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null, null);
+                    if(message.getMessage().toString().equals("[\"record\"]")) {
+                        System.out.println("sent message to pi");
+                    }
+                    else if(message.getMessage().toString().equals("[\"crossing now\"]")) {
+                        System.out.println("sent message that user is crossing");
+                    }
+                    else if(message.getMessage().toString().equals("[\"crosswalk detected\"]")) {
+                        System.out.println("sending message to watch");
+                        output("crosswalk detected, would you like to cross?");
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                //this runs on the UI thread
+                                openMic();
                             }
-                            else
-                            {
-                                System.out.println(ttsStatus);
-                            }
-                        }
-                        public void onPause(){
-                            if(tts1 != null){
-                                tts1.stop();
-                                tts1.shutdown();
-                            }
-                        }
-                    }, "com.google.android.tts");
+                        });
+                    }
+                    else if(message.getMessage().toString().equals("[\"safe to cross\"]")) {
+                        //System.out.println("sending message to watch");
+                        output("It is safe to cross now");
+                        pubNub.publish()
+                                .message(Arrays.asList("crossing now"))
+                                .channel("Channel-Barcelona")
+                                .async(new PNCallback<PNPublishResult>() {
+                                    @Override
+                                    public void onResponse(PNPublishResult result, PNStatus status) {
+                                        // handle publish result, status always present, result if successful
+                                        // status.isError to see if error happened
+                                        System.out.println("Success sending" + result);
+                                        System.out.println(status);
+                                    }
+                                });
+                    }
+                    else {
+                        output(message.getMessage().toString());
+                    }
                     //String toSpeak = message.getMessage().toString();
                     //tts1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null, null);
                 }
@@ -163,8 +291,13 @@ public class MainActivity extends AppCompatActivity {
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //all the stuff for this button is for testing purposes
+                /*final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+                speechRecognizer.startListening(speechRecognizerIntent); */
                 pubNub.publish()
-                        .message(Arrays.asList("Hello Rick"))
+                        .message(Arrays.asList("safe to cross"))
                         .channel("Channel-Barcelona")
                         .async(new PNCallback<PNPublishResult>() {
                             @Override
