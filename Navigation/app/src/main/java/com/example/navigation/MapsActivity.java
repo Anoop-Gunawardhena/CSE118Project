@@ -367,24 +367,13 @@ public class MapsActivity extends AppCompatActivity implements
             return geofencePendingIntent;
         }
 
-        Intent intent;
-        if (geofenceType.equals(Constants.CROSSWALK_DETECTION_GEOFENCE)) {
-            intent = new Intent(this, GeofenceBroadcastReceiver.class);
-            intent.putExtra("geofenceType", geofenceType);
-            crosswalkDetectionGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-            return crosswalkDetectionGeofencePendingIntent;
-        } else {
-            intent = new Intent(this, GeofenceBroadcastReceiver.class);
-            intent.putExtra("geofenceType", geofenceType);
-            walkingStraightGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-            return walkingStraightGeofencePendingIntent;
-        }
+        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
+        intent.putExtra("geofenceType", geofenceType);
 
-//        Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
-//        intent.putExtra("geofenceType", geofenceType);
-//
-//        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-//        return geofencePendingIntent;
+        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling addGeofences() and removeGeofences().
+        geofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        return geofencePendingIntent;
+
     }
 
 }
