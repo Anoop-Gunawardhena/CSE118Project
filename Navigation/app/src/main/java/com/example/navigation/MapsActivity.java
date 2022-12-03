@@ -29,6 +29,10 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.navigation.databinding.ActivityMapsBinding;
 
+import com.google.android.gms.maps.model.Polygon;
+import com.google.android.gms.maps.model.PolygonOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 
@@ -123,12 +127,24 @@ public class MapsActivity extends AppCompatActivity implements
         // 1. Add all markers to map
         mMap.addMarker(new MarkerOptions().position(Constants.CSE_BUILDING.latLng).title(Constants.CSE_BUILDING.name));
         mMap.addMarker(new MarkerOptions().position(Constants.CSE_CROSSWALK.latLng).title(Constants.CSE_CROSSWALK.name));
-        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_0.latLng).title(Constants.CSE_WALKING_STRAIGHT_0.name));
+//        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_0.latLng).title(Constants.CSE_WALKING_STRAIGHT_0.name));
         mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_1.latLng).title(Constants.CSE_WALKING_STRAIGHT_1.name));
 
         // 2. Center camera on CSE_BUILDING marker and set zoom
         mMap.moveCamera(CameraUpdateFactory.newLatLng(Constants.CSE_BUILDING.latLng));
         mMap.moveCamera(CameraUpdateFactory.zoomTo(18));
+
+        // 3. Add crosswalk polyline to map
+        Polygon crosswalk = mMap.addPolygon(new PolygonOptions()
+                .clickable(true)
+                .add(
+                        new LatLng(32.881882, -117.233176),
+                        new LatLng(32.881829, -117.233135),
+                        new LatLng(32.881881, -117.233087),
+                        new LatLng(32.881904, -117.233118)));
+        crosswalk.setStrokeColor(Color.BLUE);
+        crosswalk.setStrokeWidth(4f);
+        crosswalk.setFillColor(Constants.LIGHT_BLUE);
 
     }
 
@@ -255,7 +271,7 @@ public class MapsActivity extends AppCompatActivity implements
         }
 
         else if (geofenceType.equals(Constants.WALKING_STRAIGHT_GEOFENCE)) {
-            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_0, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
+//            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_0, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
             addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_1, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
         }
 
@@ -299,9 +315,9 @@ public class MapsActivity extends AppCompatActivity implements
 
         CircleOptions circle = new CircleOptions().center(locEntry.latLng).radius(geofenceRadius);
         if (geofenceRadius == Constants.GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION) {
-            circle.strokeColor(Color.RED).strokeWidth(4f).fillColor(Color.argb(64, 255, 0, 0));
+            circle.strokeColor(Color.RED).strokeWidth(4f).fillColor(Constants.LIGHT_RED);
         } else if (geofenceRadius == Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT) {
-            circle.strokeColor(Color.GREEN).strokeWidth(4f).fillColor(Color.argb(64, 0, 255, 0));
+            circle.strokeColor(Color.GREEN).strokeWidth(4f).fillColor(Constants.LIGHT_GREEN);
         }
         mMap.addCircle(circle);
 

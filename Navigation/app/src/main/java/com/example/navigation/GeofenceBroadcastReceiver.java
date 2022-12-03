@@ -1,14 +1,16 @@
 package com.example.navigation;
 
-import static android.content.Intent.getIntent;
-import static android.content.Intent.getIntentOld;
-import static android.content.Intent.parseUri;
+import static android.content.ContentValues.TAG;
 
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
+
+import androidx.core.app.NotificationCompat;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofenceStatusCodes;
@@ -56,47 +58,92 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             return;
         }
 
-        // Print out all triggering Geofences of event
+        // Perform map transition for all triggering Geofences of event
         for (Geofence geofence: event.getTriggeringGeofences()) {
-            System.out.println("onReceive: " + geofence.getRequestId());
+
+            String geofenceRequestId = geofence.getRequestId();
+            float geofenceRadius = geofence.getRadius();
+
+            System.out.println("onReceive: Geofence id = " + geofenceRequestId);
+            System.out.println("onReceive: Geofence radius = " + geofenceRadius);
+
+            // Publish 'crosswalk detected' message to Laurenz's PubNub Channel
+            if (geofenceRequestId.equals(Constants.CSE_CROSSWALK.name)) {
+                mapTransitionCrosswalkDetection(context, event.getGeofenceTransition());
+            }
+
+            // Publish 'veering off path' message to Laurenz's PubNub Channel
+            else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_1.name)) {
+                mapTransitionWalkingStraight(context, event.getGeofenceTransition());
+            }
+
+            else {
+                System.out.println("onReceive: NOT A KNOWN GEOFENCE TYPE TRIGGERED");
+            }
+
         }
-
-        String geofenceType = intent.getStringExtra("geofenceType");
-        System.out.println("GEOFENCE TYPE RECEIVED: " + geofenceType);
-
-        // Determine Geofence Transition and perform transition
-        mapTransition(context, event.getGeofenceTransition());
 
     }
 
     /**
      * MESSAGE PUBLICATION POST-CROSSWALK DETECTED FEATURE
-     *
      * Publish PubNub message to start Voiceflow workflow if user is proximal to a crosswalk (GEOFENCE_TRANSITION_ENTER is a success)
      */
-    private void mapTransition(Context context, int transition) {
+
+    /**
+     * Publish 'crosswalk detected' message to Laurenz's PubNub Channel
+     */
+    private void mapTransitionCrosswalkDetection(Context context, int transition) {
 
         switch (transition) {
 
             case Geofence.GEOFENCE_TRANSITION_ENTER:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Crosswalk Detection GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
-                pubnubMain(Constants.CROSSWALK_DETECTED);                           // PUBNUB PUBLICATION
+                System.out.println("mapTransition: Crosswalk Detection GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
+                pubnubMain(Constants.CROSSWALK_DETECTED);
                 break;
 
             case Geofence.GEOFENCE_TRANSITION_EXIT:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Crosswalk Detection GEOFENCE TRANSITION EXIT detected");
+                System.out.println("mapTransition: Crosswalk Detection GEOFENCE TRANSITION EXIT detected");
                 break;
 
             default:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Crosswalk Detection Geofence transition code " + transition + " detected. Unknown Action. Pass.");
+                System.out.println("mapTransition: Crosswalk Detection Geofence transition code " + transition + " detected. Unknown Action. Pass.");
                 break;
 
         }
 
     }
+
+
+    /**
+     * Publish 'veering off path' message to Laurenz's PubNub Channel
+     */
+    private void mapTransitionWalkingStraight(Context context, int transition) {
+
+    switch (transition) {
+
+        case Geofence.GEOFENCE_TRANSITION_ENTER:
+            Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
+            System.out.println("onReceive: Walking Straight GEOFENCE TRANSITION ENTER detected");
+            break;
+
+        case Geofence.GEOFENCE_TRANSITION_EXIT:
+            Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
+            System.out.println("onReceive: Walking Straight GEOFENCE TRANSITION EXIT detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
+            pubnubMain(Constants.NOT_WALKING_STRAIGHT_DETECTED);
+            break;
+
+        default:
+            Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
+            System.out.println("onReceive: Walking Straight Geofence transition code " + transition + " detected. Unknown Action. Pass.");
+            break;
+
+    }
+
+}
 
     /**
      * PUBNUB HELPER METHODS

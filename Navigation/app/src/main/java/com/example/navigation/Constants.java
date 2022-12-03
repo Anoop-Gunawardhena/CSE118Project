@@ -1,11 +1,18 @@
 package com.example.navigation;
 
+import android.graphics.Color;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class Constants {
+
+    // Color fields
+    public static final int LIGHT_RED = Color.argb(64, 255, 0, 0);
+    public static final int LIGHT_GREEN = Color.argb(64, 0, 255, 0);
+    public static final int LIGHT_BLUE = Color.argb(64, 0, 0, 255);
 
     // Marker fields
     public static final LocEntry CSE_BUILDING = new LocEntry("CSE_BUILDING", new LatLng(32.881809, -117.233460));
