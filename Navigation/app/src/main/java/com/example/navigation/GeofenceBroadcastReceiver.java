@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.widget.Toast;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofenceStatusCodes;
@@ -39,7 +40,7 @@ import java.util.List;
  *
  * Includes MESSAGE PUBLICATION POST-CROSSWALK DETECTED feature
  */
-public abstract class GeofenceBroadcastReceiver extends BroadcastReceiver {
+public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
     /** PUBNUB INSTANCE VARIABLES **/
     // PubNub connection instance field
@@ -73,7 +74,29 @@ public abstract class GeofenceBroadcastReceiver extends BroadcastReceiver {
      *
      * Publish PubNub message to start Voiceflow workflow if user is proximal to a crosswalk (GEOFENCE_TRANSITION_ENTER is a success)
      */
-    protected abstract void mapTransition(Context context, int transition);
+    private void mapTransition(Context context, int transition) {
+
+        switch (transition) {
+
+            case Geofence.GEOFENCE_TRANSITION_ENTER:
+                Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
+                System.out.println("onReceive: Crosswalk Detection GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
+                pubnubMain(Constants.CROSSWALK_DETECTED);                           // PUBNUB PUBLICATION
+                break;
+
+            case Geofence.GEOFENCE_TRANSITION_EXIT:
+                Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
+                System.out.println("onReceive: Crosswalk Detection GEOFENCE TRANSITION EXIT detected");
+                break;
+
+            default:
+                Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
+                System.out.println("onReceive: Crosswalk Detection Geofence transition code " + transition + " detected. Unknown Action. Pass.");
+                break;
+
+        }
+
+    }
 
     /**
      * PUBNUB HELPER METHODS
