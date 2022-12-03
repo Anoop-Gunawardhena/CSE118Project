@@ -1,16 +1,13 @@
 package com.example.navigation;
 
-import static android.content.ContentValues.TAG;
+import static android.content.Intent.getIntent;
+import static android.content.Intent.getIntentOld;
+import static android.content.Intent.parseUri;
 
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
-import android.widget.Toast;
-
-import androidx.core.app.NotificationCompat;
+import android.os.Bundle;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofenceStatusCodes;
@@ -42,7 +39,7 @@ import java.util.List;
  *
  * Includes MESSAGE PUBLICATION POST-CROSSWALK DETECTED feature
  */
-public class GeofenceBroadcastReceiver extends BroadcastReceiver {
+public abstract class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
     /** PUBNUB INSTANCE VARIABLES **/
     // PubNub connection instance field
@@ -63,6 +60,9 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             System.out.println("onReceive: " + geofence.getRequestId());
         }
 
+        String geofenceType = intent.getStringExtra("geofenceType");
+        System.out.println("GEOFENCE TYPE RECEIVED: " + geofenceType);
+
         // Determine Geofence Transition and perform transition
         mapTransition(context, event.getGeofenceTransition());
 
@@ -73,29 +73,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
      *
      * Publish PubNub message to start Voiceflow workflow if user is proximal to a crosswalk (GEOFENCE_TRANSITION_ENTER is a success)
      */
-    private void mapTransition(Context context, int transition) {
-
-        switch (transition) {
-
-            case Geofence.GEOFENCE_TRANSITION_ENTER:
-                Toast.makeText(context, "GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
-                pubnubMain();                           // PUBNUB PUBLICATION
-                break;
-
-            case Geofence.GEOFENCE_TRANSITION_EXIT:
-                Toast.makeText(context, "GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: GEOFENCE TRANSITION EXIT detected");
-                break;
-
-            default:
-                Toast.makeText(context, "GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: " + transition + " Geofence transition code detected. Unknown Action. Pass.");
-                break;
-
-        }
-
-    }
+    protected abstract void mapTransition(Context context, int transition);
 
     /**
      * PUBNUB HELPER METHODS
@@ -104,7 +82,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
     /**
      * PubNub connection and publication Main Helpher Method
      */
-    public void pubnubMain() {
+    public void pubnubMain(String message) {
 
         try {
 
@@ -121,7 +99,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
              * PUBNUB PUBLISH/SUBSCRIBE
              */
             // Publish CROSSWALK_DETECTED message
-            pubnub.publish().message(Constants.CROSSWALK_DETECTED).channel(Constants.laurenzChannelName).async(createPNCallback());
+            pubnub.publish().message(message).channel(Constants.laurenzChannelName).async(createPNCallback());
 
             // Subscribe to androidToVoiceflowChannel to receive CROSSWALK_DETECTED message
             pubnub.subscribe().channels(Arrays.asList(Constants.laurenzChannelName)).execute();
