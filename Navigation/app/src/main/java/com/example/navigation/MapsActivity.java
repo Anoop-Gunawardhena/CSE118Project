@@ -369,12 +369,12 @@ public class MapsActivity extends AppCompatActivity implements
 
         Intent intent;
         if (geofenceType.equals(Constants.CROSSWALK_DETECTION_GEOFENCE)) {
-            intent = new Intent(this, CrosswalkDetectionGeofenceBroadcastReceiver.class);
+            intent = new Intent(this, GeofenceBroadcastReceiver.class);
             intent.putExtra("geofenceType", geofenceType);
             crosswalkDetectionGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
             return crosswalkDetectionGeofencePendingIntent;
         } else {
-            intent = new Intent(this, WalkingStraightGeofenceBroadcastReceiver.class);
+            intent = new Intent(this, GeofenceBroadcastReceiver.class);
             intent.putExtra("geofenceType", geofenceType);
             walkingStraightGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
             return walkingStraightGeofencePendingIntent;
