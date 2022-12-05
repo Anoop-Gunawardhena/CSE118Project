@@ -73,7 +73,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             }
 
             // Publish 'veering off path' message to Laurenz's PubNub Channel
-            else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_1.name)) {
+            else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_TOP.name) || geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_BOTTOM.name)) {
                 mapTransitionWalkingStraight(context, event.getGeofenceTransition());
             }
 
