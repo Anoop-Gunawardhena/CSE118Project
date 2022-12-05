@@ -93,21 +93,21 @@ public class MapsActivity extends AppCompatActivity implements
 
         mMap = googleMap;
 
-        System.out.println("Adding markers");
+        System.out.println("Adding markers...");
 
         /**
          * MARKER SETUP
          */
         addMarkersMain();
 
-        System.out.println("Finished adding markers. My Location Setup");
+        System.out.println("Finished adding markers. My Location Setup...");
 
         /**
          * MY LOCATION SETUP
          */
         myLocationSetupMain();
 
-        System.out.println("My Location enabled. Geofencing");
+        System.out.println("My Location enabled. Geofencing...");
 
         /**
          * GEOFENCING SETUP
@@ -127,8 +127,12 @@ public class MapsActivity extends AppCompatActivity implements
         // 1. Add all markers to map
         mMap.addMarker(new MarkerOptions().position(Constants.CSE_BUILDING.latLng).title(Constants.CSE_BUILDING.name));
         mMap.addMarker(new MarkerOptions().position(Constants.CSE_CROSSWALK.latLng).title(Constants.CSE_CROSSWALK.name));
-//        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_0.latLng).title(Constants.CSE_WALKING_STRAIGHT_0.name));
-        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_1.latLng).title(Constants.CSE_WALKING_STRAIGHT_1.name));
+
+        // mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_0.latLng).title(Constants.CSE_WALKING_STRAIGHT_0.name));
+        // mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_1.latLng).title(Constants.CSE_WALKING_STRAIGHT_1.name));
+
+        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_TOP.latLng).title(Constants.CSE_WALKING_STRAIGHT_TOP.name));
+        mMap.addMarker(new MarkerOptions().position(Constants.CSE_WALKING_STRAIGHT_BOTTOM.latLng).title(Constants.CSE_WALKING_STRAIGHT_BOTTOM.name));
 
         // 2. Center camera on CSE_BUILDING marker and set zoom
         mMap.moveCamera(CameraUpdateFactory.newLatLng(Constants.CSE_BUILDING.latLng));
@@ -167,8 +171,6 @@ public class MapsActivity extends AppCompatActivity implements
     @Override
     public boolean onMyLocationButtonClick() {
         Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
-        // Return false so that we don't consume the event and the default behavior still occurs
-        // (the camera animates to the user's current position).
         return false;
     }
 
@@ -271,8 +273,11 @@ public class MapsActivity extends AppCompatActivity implements
         }
 
         else if (geofenceType.equals(Constants.WALKING_STRAIGHT_GEOFENCE)) {
-//            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_0, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
-            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_1, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
+            // addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_0, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
+            // addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_1, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
+
+            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_TOP, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
+            addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_BOTTOM, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
         }
 
         System.out.println("geofenceList: " + geofenceList);
