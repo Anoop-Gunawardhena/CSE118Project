@@ -14,16 +14,24 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.widget.Toast;
 
-import com.example.navigation.TextToSpeech.ListenResultCallback;
+import com.example.navigation.TextToSpeech.MicListener;
+import com.example.navigation.TextToSpeech.PubNubSubscribeCallback;
+import com.example.navigation.TextToSpeech.PubNubUtils;
+import com.example.navigation.TextToSpeech.UtteranceListener;
 import com.example.navigation.TextToSpeech.MessageReceivedCallback;
 import com.example.navigation.TextToSpeech.Mic;
 import com.example.navigation.TextToSpeech.MicResultCallback;
-import com.example.navigation.TextToSpeech.PubNubUtils;
+import com.example.navigation.TextToSpeech.ObservableObject;
 import com.example.navigation.TextToSpeech.Speaker;
-import com.example.navigation.TextToSpeech.TTSOnInitListener;
+import com.example.navigation.TextToSpeech.UtteranceProgress;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingClient;
 import com.google.android.gms.location.GeofencingRequest;
@@ -39,17 +47,13 @@ import com.example.navigation.databinding.ActivityMapsBinding;
 
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.pubnub.api.callbacks.PNCallback;
-import com.pubnub.api.models.consumer.PNPublishResult;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
+import java.util.Observable;
+import java.util.Observer;
 
 //Serves as MainActivtiy
 public class MapsActivity extends AppCompatActivity implements
@@ -59,13 +63,15 @@ public class MapsActivity extends AppCompatActivity implements
         ActivityCompat.OnRequestPermissionsResultCallback,
         MicResultCallback,
         MessageReceivedCallback,
-        ListenResultCallback {
+        UtteranceProgress,
+        Observer {
 
-    /** GOOGLE MAPS PLATFORMS INSTANCE VARIABLES **/
+    /**
+     * GOOGLE MAPS PLATFORMS INSTANCE VARIABLES
+     **/
     // Maps fields
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
-    private PubNubUtils pubNub;
 
     // Geofencing fields
     private GeofencingClient crosswalkDetectionGeofencingClient;
@@ -76,8 +82,8 @@ public class MapsActivity extends AppCompatActivity implements
     private PendingIntent walkingStraightGeofencePendingIntent;
     private List<Geofence> walkingStraightGeofenceList = new ArrayList<>();
 
-    //Utils class that helps us to output text to speech
-    private Speaker speaker;
+    private SpeechRecognizer speechRecognizer;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,14 +95,76 @@ public class MapsActivity extends AppCompatActivity implements
          */
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        pubNub = new PubNubUtils(this);
 
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},1);
+        Speaker.setContext(this);
 
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO, permission.ACCESS_BACKGROUND_LOCATION, permission.ACCESS_COARSE_LOCATION, permission.ACCESS_FINE_LOCATION}, 1);
+
+        ObservableObject.getInstance().addObserver(this);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        // Initializing the Pubnub server connection
+        PubNubUtils.getInstance();
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override
+            public void onReadyForSpeech(Bundle bundle) {
+                System.out.println("ready");
+            }
+
+            @Override
+            public void onBeginningOfSpeech() {
+                System.out.println("begin");
+            }
+
+            @Override
+            public void onRmsChanged(float v) {
+                System.out.println("changed");
+            }
+
+            @Override
+            public void onBufferReceived(byte[] bytes) {
+                System.out.println("Received");
+            }
+
+            @Override
+            public void onEndOfSpeech() {
+                System.out.println("End");
+            }
+
+            @Override
+            public void onError(int i) {
+                System.out.println("Error " + i);
+            }
+
+            @Override
+            public void onResults(Bundle bundle) {
+                ArrayList<String> data = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (!data.isEmpty()) {
+                    System.out.println("result " + data.get(0));
+                    if (data.get(0).equals("yes")) {
+                        System.out.println("Activate PI");
+                        PubNubUtils.getInstance().publish("record");
+                    }
+                }
+            }
+
+            @Override
+            public void onPartialResults(Bundle bundle) {
+
+            }
+
+            @Override
+            public void onEvent(int i, Bundle bundle) {
+
+            }
+        });
+
+        Mic.getInstance().setSpeechRecognizer(speechRecognizer);
 
     }
 
@@ -114,9 +182,7 @@ public class MapsActivity extends AppCompatActivity implements
     public void onMapReady(GoogleMap googleMap) {
 
         mMap = googleMap;
-        pubNub.publish("Hello Laurenz");
         System.out.println("Adding markers...");
-        Mic.listen(this, this);
 
         /**
          * MARKER SETUP
@@ -225,6 +291,7 @@ public class MapsActivity extends AppCompatActivity implements
         PermissionUtils.requestPermission(this, Constants.LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_FINE_LOCATION, true);
         PermissionUtils.requestPermission(this, Constants.LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_COARSE_LOCATION, true);
         PermissionUtils.requestPermission(this, Constants.LOCATION_PERMISSION_REQUEST_CODE, permission.ACCESS_BACKGROUND_LOCATION, true);
+        //PermissionUtils.requestPermission(this, Constants.LOCATION_PERMISSION_REQUEST_CODE, permission.RECORD_AUDIO, true);
 
     }
 
@@ -236,12 +303,10 @@ public class MapsActivity extends AppCompatActivity implements
             return;
         }
 
-        if (PermissionUtils.isPermissionGranted(permissions, grantResults,
-                Manifest.permission.ACCESS_FINE_LOCATION) || PermissionUtils
-                .isPermissionGranted(permissions, grantResults,
-                        Manifest.permission.ACCESS_COARSE_LOCATION) || PermissionUtils
-                .isPermissionGranted(permissions, grantResults,
-                        permission.ACCESS_BACKGROUND_LOCATION)) {
+        if (
+                PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_FINE_LOCATION)
+                        || PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        || PermissionUtils.isPermissionGranted(permissions, grantResults, permission.ACCESS_BACKGROUND_LOCATION)) {
             // Enable the my location layer if the permission has been granted.
             enableMyLocation();
         } else {
@@ -293,9 +358,7 @@ public class MapsActivity extends AppCompatActivity implements
 
         if (geofenceType.equals(Constants.CROSSWALK_DETECTION_GEOFENCE)) {
             addGeofenceToList(geofenceList, Constants.CSE_CROSSWALK, Constants.GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION);
-        }
-
-        else if (geofenceType.equals(Constants.WALKING_STRAIGHT_GEOFENCE)) {
+        } else if (geofenceType.equals(Constants.WALKING_STRAIGHT_GEOFENCE)) {
             // addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_0, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
             // addGeofenceToList(geofenceList, Constants.CSE_WALKING_STRAIGHT_1, Constants.GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT);
 
@@ -363,29 +426,29 @@ public class MapsActivity extends AppCompatActivity implements
         // Add all Geofences in geofenceList to Geofencing Client to publish to application geofencing API
         geofencingClient.addGeofences(geofencingRequest, gPI)
 
-            .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
-                    System.out.println("onSuccess: Geofences added successfully to Geofencing Client to publish to application geofencing API");
-                    System.out.println("onSuccess: Geofencing client = " + geofencingClient);
-                    System.out.println("onSuccess: Geofence list = " + geofenceList);
-                    System.out.println("onSuccess: Geofence request = " + geofencingRequest.getGeofences());
-                    System.out.println("onSuccess: Geofence pending intent = " + gPI);
-                    System.out.println("onSuccess: Geofence type = " + geofenceType);
+                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        System.out.println("onSuccess: Geofences added successfully to Geofencing Client to publish to application geofencing API");
+                        System.out.println("onSuccess: Geofencing client = " + geofencingClient);
+                        System.out.println("onSuccess: Geofence list = " + geofenceList);
+                        System.out.println("onSuccess: Geofence request = " + geofencingRequest.getGeofences());
+                        System.out.println("onSuccess: Geofence pending intent = " + gPI);
+                        System.out.println("onSuccess: Geofence type = " + geofenceType);
 
-                }
-            })
+                    }
+                })
 
-            .addOnFailureListener(this, new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    System.out.println("onFailure: ");
-                    System.out.println("Beginning of geofencingClient.addGeofences.onFailure() Exception --- ");
-                    e.printStackTrace();
-                    System.out.println(" --- End of geofencingClient.addGeofences.onFailure() Exception");
-                }
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        System.out.println("onFailure: ");
+                        System.out.println("Beginning of geofencingClient.addGeofences.onFailure() Exception --- ");
+                        e.printStackTrace();
+                        System.out.println(" --- End of geofencingClient.addGeofences.onFailure() Exception");
+                    }
 
-            });
+                });
 
     }
 
@@ -431,9 +494,34 @@ public class MapsActivity extends AppCompatActivity implements
 
     @Override
     public void message(String message) {
-        if(message.equals("[\"safe to cross\"]")) {
+        if (message.equals("[\"safe to cross\"]")) {
             //TODO: Rick should activate the Walking straight feature here
-            Speaker.speak(this,"There are no cars detected, you can cross now");
+            Speaker.speak("There are no cars detected, you can cross now");
         }
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        String out = "Update Received ";
+        switch (o.toString()) {
+            case Constants.CROSSWALK_DETECTED:
+                System.out.println(out + o.toString());
+
+                Speaker.speak(Constants.CROSSWALK_DETECTED);
+
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        //this runs on the UI thread
+                        Mic.getInstance().listen();
+                    }
+                }, 4500);
+        }
+    }
+
+    @Override
+    public void onDone(String result) {
+        System.out.println("Done");
+        Mic.getInstance().listen();
     }
 }
