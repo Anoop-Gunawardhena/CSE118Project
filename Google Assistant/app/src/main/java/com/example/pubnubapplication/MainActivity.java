@@ -69,13 +69,6 @@ public class MainActivity extends AppCompatActivity {
                     System.out.println(ttsStatus);
                 }
             }
-
-            public void onPause() {
-                if (tts != null) {
-                    tts.stop();
-                    tts.shutdown();
-                }
-            }
         }, "com.google.android.tts");
     }
 

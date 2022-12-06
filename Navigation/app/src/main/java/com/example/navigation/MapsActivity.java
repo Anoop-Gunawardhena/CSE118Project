@@ -14,8 +14,16 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
 import android.widget.Toast;
 
+import com.example.navigation.TextToSpeech.ListenResultCallback;
+import com.example.navigation.TextToSpeech.MessageReceivedCallback;
+import com.example.navigation.TextToSpeech.Mic;
+import com.example.navigation.TextToSpeech.MicResultCallback;
+import com.example.navigation.TextToSpeech.PubNubUtils;
+import com.example.navigation.TextToSpeech.Speaker;
+import com.example.navigation.TextToSpeech.TTSOnInitListener;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingClient;
 import com.google.android.gms.location.GeofencingRequest;
@@ -35,20 +43,29 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.pubnub.api.callbacks.PNCallback;
+import com.pubnub.api.models.consumer.PNPublishResult;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
+//Serves as MainActivtiy
 public class MapsActivity extends AppCompatActivity implements
         GoogleMap.OnMyLocationButtonClickListener,
         GoogleMap.OnMyLocationClickListener,
         OnMapReadyCallback,
-        ActivityCompat.OnRequestPermissionsResultCallback {
+        ActivityCompat.OnRequestPermissionsResultCallback,
+        MicResultCallback,
+        MessageReceivedCallback,
+        ListenResultCallback {
 
     /** GOOGLE MAPS PLATFORMS INSTANCE VARIABLES **/
     // Maps fields
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
+    private PubNubUtils pubNub;
 
     // Geofencing fields
     private GeofencingClient crosswalkDetectionGeofencingClient;
@@ -59,6 +76,8 @@ public class MapsActivity extends AppCompatActivity implements
     private PendingIntent walkingStraightGeofencePendingIntent;
     private List<Geofence> walkingStraightGeofenceList = new ArrayList<>();
 
+    //Utils class that helps us to output text to speech
+    private Speaker speaker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +89,9 @@ public class MapsActivity extends AppCompatActivity implements
          */
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        pubNub = new PubNubUtils(this);
+
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},1);
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -92,8 +114,9 @@ public class MapsActivity extends AppCompatActivity implements
     public void onMapReady(GoogleMap googleMap) {
 
         mMap = googleMap;
-
+        pubNub.publish("Hello Laurenz");
         System.out.println("Adding markers...");
+        Mic.listen(this, this);
 
         /**
          * MARKER SETUP
@@ -397,4 +420,20 @@ public class MapsActivity extends AppCompatActivity implements
 
     }
 
+
+    @Override
+    public void result(String result) {
+        System.out.println("Listen Result");
+        if (result.equals("yes")) {
+
+        }
+    }
+
+    @Override
+    public void message(String message) {
+        if(message.equals("[\"safe to cross\"]")) {
+            //TODO: Rick should activate the Walking straight feature here
+            Speaker.speak(this,"There are no cars detected, you can cross now");
+        }
+    }
 }

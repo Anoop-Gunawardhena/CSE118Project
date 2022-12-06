@@ -7,11 +7,18 @@ import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 
+import com.example.navigation.TextToSpeech.ListenResultCallback;
+import com.example.navigation.TextToSpeech.MessageReceivedCallback;
+import com.example.navigation.TextToSpeech.Mic;
+import com.example.navigation.TextToSpeech.PubNubUtils;
+import com.example.navigation.TextToSpeech.Speaker;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofenceStatusCodes;
 import com.google.android.gms.location.GeofencingEvent;
@@ -42,11 +49,11 @@ import java.util.List;
  *
  * Includes MESSAGE PUBLICATION POST-CROSSWALK DETECTED feature
  */
-public class GeofenceBroadcastReceiver extends BroadcastReceiver {
+public class GeofenceBroadcastReceiver extends BroadcastReceiver implements ListenResultCallback, MessageReceivedCallback {
 
     /** PUBNUB INSTANCE VARIABLES **/
     // PubNub connection instance field
-    private PubNub pubnub;
+    private PubNubUtils pubnub = new PubNubUtils(this);
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -99,8 +106,12 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
             case Geofence.GEOFENCE_TRANSITION_ENTER:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
+                //The user entered the crosswalk geofence and is then asked if he wants to cross
+                Speaker.speak(context, Constants.CROSSWALK_DETECTED);
+
+                Mic.listen(context, this);
                 System.out.println("mapTransition: Crosswalk Detection GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
-                pubnubMain(Constants.CROSSWALK_DETECTED);
+                pubnub.publish(Constants.CROSSWALK_DETECTED);
                 break;
 
             case Geofence.GEOFENCE_TRANSITION_EXIT:
@@ -133,7 +144,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
         case Geofence.GEOFENCE_TRANSITION_EXIT:
             Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
             System.out.println("onReceive: Walking Straight GEOFENCE TRANSITION EXIT detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
-            pubnubMain(Constants.NOT_WALKING_STRAIGHT_DETECTED);
+            pubnub.publish(Constants.NOT_WALKING_STRAIGHT_DETECTED);
             break;
 
         default:
@@ -145,152 +156,17 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
 }
 
-    /**
-     * PUBNUB HELPER METHODS
-     */
-
-    /**
-     * PubNub connection and publication Main Helpher Method
-     */
-    public void pubnubMain(String message) {
-
-        try {
-
-            /**
-             * PUBNUB CONNECTION SETUP
-             */
-            // Instantiate PubNub
-            pubnub = createPubNubConnection();
-
-            // Add subscribeCallBack listener to pubnub client
-            pubnub.addListener(createSubscribeCallback());
-
-            /**
-             * PUBNUB PUBLISH/SUBSCRIBE
-             */
-            // Publish CROSSWALK_DETECTED message
-            pubnub.publish().message(message).channel(Constants.laurenzChannelName).async(createPNCallback());
-
-            // Subscribe to androidToVoiceflowChannel to receive CROSSWALK_DETECTED message
-            pubnub.subscribe().channels(Arrays.asList(Constants.laurenzChannelName)).execute();
-
-        } catch (PubNubException e) {
-            System.out.println("*** EXCEPTION IN PUBNUB CONNECTION ***");
-            e.printStackTrace();
+    //Check if the user said yes or no
+    @Override
+    public void result(String result) {
+        if (result.equals("yes")) {
+            //Send Pubnub message to activate PI
+            pubnub.publish("record");
         }
-
     }
 
-    /**
-     * Helper method to create PubNub Connection object which establishes connection to PubNub channel
-     */
-    public PubNub createPubNubConnection() throws PubNubException {
-
-        PNConfiguration pnConfiguration = new PNConfiguration(Constants.UUID);
-        pnConfiguration.setSubscribeKey(Constants.laurenzSubscribeKey);
-        pnConfiguration.setPublishKey(Constants.laurenzPublishKey);
-
-        return new PubNub(pnConfiguration);
+    @Override
+    public void message(String message) {
 
     }
-
-    /**
-     * create PubNub Subscribe Callback object helper method
-     */
-    public SubscribeCallback createSubscribeCallback() {
-
-        SubscribeCallback subscribeCallback = new SubscribeCallback() {
-            @Override
-            public void status(PubNub pubnub, PNStatus status) {
-
-                if (status.getCategory() == PNStatusCategory.PNUnexpectedDisconnectCategory) {
-                    pubnub.reconnect();
-                }
-                else if (status.getCategory() == PNStatusCategory.PNConnectedCategory) {
-                    System.out.println("PubNub Android client connected to: " + Constants.laurenzChannelName);
-                }
-                else if (status.getCategory() == PNStatusCategory.PNReconnectedCategory) {
-                    System.out.println("PubNub Android client reconnected to: " + Constants.laurenzChannelName);
-                }
-                else if (status.getCategory() == PNStatusCategory.PNDecryptionErrorCategory) {
-                    pubnub.reconnect();
-                }
-
-            }
-
-            @Override
-            public void message(PubNub pubnub, PNMessageResult message) {
-
-                // Handle new message stored in message.message
-                String messagePublisher = message.getPublisher();
-                System.out.println("Message publisher: " + messagePublisher);
-                System.out.println("Message Subscription: " + message.getSubscription());
-                System.out.println("Message Channel: " + message.getChannel());
-                System.out.println("Message: " + message.getMessage());
-
-            }
-
-            @Override
-            public void presence(PubNub pubnub, PNPresenceEventResult presence) {
-            }
-
-            @Override
-            public void signal(@NotNull PubNub pubNub, @NotNull PNSignalResult pnSignalResult) {
-            }
-
-            @Override
-            public void uuid(@NotNull PubNub pubNub, @NotNull PNUUIDMetadataResult pnuuidMetadataResult) {
-            }
-
-            @Override
-            public void channel(@NotNull PubNub pubNub, @NotNull PNChannelMetadataResult pnChannelMetadataResult) {
-            }
-
-            @Override
-            public void membership(@NotNull PubNub pubNub, @NotNull PNMembershipResult pnMembershipResult) {
-            }
-
-            @Override
-            public void messageAction(@NotNull PubNub pubNub, @NotNull PNMessageActionResult pnMessageActionResult) {
-            }
-
-            @Override
-            public void file(@NotNull PubNub pubNub, @NotNull PNFileEventResult pnFileEventResult) {
-            }
-
-        };
-
-        return subscribeCallback;
-    }
-
-    /**
-     * create PubNub Callback object helper method
-     * @return
-     */
-    public PNCallback<PNPublishResult> createPNCallback() {
-
-        PNCallback<PNPublishResult> pnCallback = new PNCallback<PNPublishResult>() {
-
-            @Override
-            public void onResponse(PNPublishResult result, PNStatus status) {
-
-                // Check whether request successfully completed or not.
-                if (!status.isError()) {
-                    // Message successfully published to specified channel.
-                    System.out.println("Message successfully published to specified channel");
-                }
-
-                // Request processing failed.
-                else {
-                    status.retry();
-                }
-
-            }
-
-        };
-
-        return pnCallback;
-
-    }
-
 }

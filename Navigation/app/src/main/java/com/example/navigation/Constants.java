@@ -50,7 +50,7 @@ public class Constants {
     public static final String laurenzSubscribeKey = "sub-c-abee09f7-35bc-4433-b4ba-ba12da2c5028";
 
     // PubNub messages fields
-    public static final String CROSSWALK_DETECTED = "crosswalk detected";
+    public static final String CROSSWALK_DETECTED = "There is a crosswalk detected, do you want to cross?";
     public static final String NOT_WALKING_STRAIGHT_DETECTED = "not walking straight detected";
 
 }
