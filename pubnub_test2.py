@@ -7,7 +7,7 @@ pnconfig = PNConfiguration()
 
 pnconfig.subscribe_key = 'sub-c-abee09f7-35bc-4433-b4ba-ba12da2c5028'
 pnconfig.publish_key = 'pub-c-f30c3204-e2ee-4907-9d2a-57f68b84a3e9'
-pnconfig.user_id = "my_custom_user_id"
+pnconfig.user_id = "Channel-Barcelona"
 pubnub = PubNub(pnconfig)
 
 def my_publish_callback(envelope, status):
@@ -49,4 +49,4 @@ pubnub.add_listener(MySubscribeCallback())
 
 while True:
     m = input("Your Input: ")
-    pubnub.publish().channel('my_channel').message(m).pn_async(my_publish_callback)   
+    pubnub.publish().channel('Channel-Barcelona').message(m).pn_async(my_publish_callback)   
