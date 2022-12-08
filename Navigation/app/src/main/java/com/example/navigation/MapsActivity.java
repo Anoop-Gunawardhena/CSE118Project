@@ -25,6 +25,7 @@ import android.widget.Toast;
 import com.example.navigation.TextToSpeech.MicListener;
 import com.example.navigation.TextToSpeech.PubNubSubscribeCallback;
 import com.example.navigation.TextToSpeech.PubNubUtils;
+import com.example.navigation.TextToSpeech.SpeechReadyListener;
 import com.example.navigation.TextToSpeech.UtteranceListener;
 import com.example.navigation.TextToSpeech.MessageReceivedCallback;
 import com.example.navigation.TextToSpeech.Mic;
@@ -110,6 +111,8 @@ public class MapsActivity extends AppCompatActivity implements
         PubNubUtils.getInstance();
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new SpeechReadyListener(this));
+        /*
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override
             public void onReadyForSpeech(Bundle bundle) {
@@ -148,6 +151,7 @@ public class MapsActivity extends AppCompatActivity implements
                     System.out.println("result " + data.get(0));
                     if (data.get(0).equals("yes")) {
                         System.out.println("Activate PI");
+                        Toast.makeText(, "User said yes", Toast.LENGTH_SHORT).show();
                         PubNubUtils.getInstance().publish("record");
                     }
                 }
@@ -163,6 +167,7 @@ public class MapsActivity extends AppCompatActivity implements
 
             }
         });
+         */
 
         Mic.getInstance().setSpeechRecognizer(speechRecognizer);
 
@@ -494,9 +499,12 @@ public class MapsActivity extends AppCompatActivity implements
 
     @Override
     public void message(String message) {
+        System.out.println("New Message");
         if (message.equals("[\"safe to cross\"]")) {
             //TODO: Rick should activate the Walking straight feature here
             Speaker.speak("There are no cars detected, you can cross now");
+        } else if(message.equals("[\"wait\"]")) {
+            Speaker.speak("There are cars approaaching, you have to wait");
         }
     }
 
@@ -504,9 +512,8 @@ public class MapsActivity extends AppCompatActivity implements
     public void update(Observable observable, Object o) {
         String out = "Update Received ";
         switch (o.toString()) {
+            // we observe the broadcast receiver, as soon as it sends that the crosswalk was detected, we can output this
             case Constants.CROSSWALK_DETECTED:
-                System.out.println(out + o.toString());
-
                 Speaker.speak(Constants.CROSSWALK_DETECTED);
 
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
@@ -515,7 +522,14 @@ public class MapsActivity extends AppCompatActivity implements
                         //this runs on the UI thread
                         Mic.getInstance().listen();
                     }
-                }, 4500);
+                }, 5000);
+                break;
+            case Constants.CSE_EXIT_TOP:
+            case Constants.CSE_EXIT_BOTTOM:
+                Speaker.speak(Constants.CSE_EXIT_CROSSWALK);
+            default:
+                System.out.println("No action");
+
         }
     }
 

@@ -42,13 +42,17 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
             // Publish 'crosswalk detected' message to Laurenz's PubNub Channel
             if (geofenceRequestId.equals(Constants.CSE_CROSSWALK.name)) {
-                mapTransitionCrosswalkDetection(context, event.getGeofenceTransition());
+                mapTransitionCrosswalkDetection(context, event.getGeofenceTransition(), Constants.CROSSWALK_DETECTED);
             }
 
             // Publish 'veering off path' message to Laurenz's PubNub Channel
-            else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_TOP.name) || geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_BOTTOM.name)) {
-                mapTransitionWalkingStraight(context, event.getGeofenceTransition());
-            } else {
+            else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_TOP.name)) {
+                System.out.println("Exit Top");
+                mapTransitionCrosswalkDetection(context, event.getGeofenceTransition(), Constants.CSE_EXIT_TOP);
+            } else if (geofenceRequestId.equals(Constants.CSE_WALKING_STRAIGHT_BOTTOM.name)) {
+                mapTransitionCrosswalkDetection(context, event.getGeofenceTransition(), Constants.CSE_EXIT_BOTTOM);
+            }
+            else {
                 System.out.println("onReceive: NOT A KNOWN GEOFENCE TYPE TRIGGERED");
             }
 
@@ -64,14 +68,14 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
     /**
      * Publish 'crosswalk detected' message to Laurenz's PubNub Channel
      */
-    private void mapTransitionCrosswalkDetection(Context context, int transition) {
+    private void mapTransitionCrosswalkDetection(Context context, int transition, String message) {
 
         switch (transition) {
 
             case Geofence.GEOFENCE_TRANSITION_ENTER:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
                 //The user entered the crosswalk geofence and is then asked if he wants to cross
-                ObservableObject.getInstance().updateValue(Constants.CROSSWALK_DETECTED);
+                ObservableObject.getInstance().updateValue(message);
                 System.out.println("mapTransition: Crosswalk Detection GEOFENCE TRANSITION ENTER detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
                 break;
 
@@ -83,37 +87,6 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             default:
                 Toast.makeText(context, "Crosswalk Detection GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
                 System.out.println("mapTransition: Crosswalk Detection Geofence transition code " + transition + " detected. Unknown Action. Pass.");
-                break;
-
-        }
-
-    }
-
-
-    /**
-     * Publish 'veering off path' message to Laurenz's PubNub Channel
-     */
-    private void mapTransitionWalkingStraight(Context context, int transition) {
-
-        switch (transition) {
-
-            case Geofence.GEOFENCE_TRANSITION_ENTER:
-                Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Walking Straight GEOFENCE TRANSITION ENTER detected");
-                //The broadcast recevier and the activity exchange message over the observer pattern
-                ObservableObject.getInstance().updateValue("Walking straight");
-                break;
-
-            case Geofence.GEOFENCE_TRANSITION_EXIT:
-                Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Walking Straight GEOFENCE TRANSITION EXIT detected. Publishing CROSSWALK_DETECTED message to " + Constants.laurenzChannelName);
-                //The broadcast recevier and the activity exchange message over the observer pattern
-                ObservableObject.getInstance().updateValue("Not walking straight");
-                break;
-
-            default:
-                Toast.makeText(context, "Walking Straight GEOFENCE_TRANSITION_UNKNOWN", Toast.LENGTH_SHORT).show();
-                System.out.println("onReceive: Walking Straight Geofence transition code " + transition + " detected. Unknown Action. Pass.");
                 break;
 
         }

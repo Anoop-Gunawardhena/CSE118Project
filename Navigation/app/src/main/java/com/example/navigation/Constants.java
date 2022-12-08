@@ -16,21 +16,25 @@ public class Constants {
 
     // Marker fields
     public static final LocEntry CSE_BUILDING = new LocEntry("CSE_BUILDING", new LatLng(32.881809, -117.233460));
-    public static final LocEntry CSE_CROSSWALK = new LocEntry("CSE_CROSSWALK", new LatLng(32.881811, -117.233184));
+    public static final LocEntry CSE_CROSSWALK = new LocEntry("CSE_CROSSWALK", new LatLng(32.8818788, -117.2331303));
 
     public static final LocEntry CSE_WALKING_STRAIGHT_0 = new LocEntry("CSE_WALKING_STRAIGHT_0", new LatLng(32.881868, -117.233136));
     public static final LocEntry CSE_WALKING_STRAIGHT_1 = new LocEntry("CSE_WALKING_STRAIGHT_1", new LatLng(32.881881, -117.233124));
 
-    public static final LocEntry CSE_WALKING_STRAIGHT_TOP = new LocEntry("CSE_WALKING_STRAIGHT_TOP", new LatLng(32.881988, -117.233211));
-    public static final LocEntry CSE_WALKING_STRAIGHT_BOTTOM = new LocEntry("CSE_WALKING_STRAIGHT_BOTTOM", new LatLng(32.881751, -117.233026));
+    public static final LocEntry CSE_WALKING_STRAIGHT_TOP = new LocEntry("CSE_WALKING_STRAIGHT_TOP", new LatLng(32.8819543, -117.2331900));
+    public static final LocEntry CSE_WALKING_STRAIGHT_BOTTOM = new LocEntry("CSE_WALKING_STRAIGHT_BOTTOM", new LatLng(32.8817980, -117.2330663));
 
+    public static final String CSE_EXIT_TOP = "Exit top";
+    public static final String CSE_EXIT_BOTTOM = "Exit bottom";
+
+    public static final String CSE_EXIT_CROSSWALK = "You have exited the crosswalk. Please return to the crosswalk to stay safe";
     // Permissions fields
     public static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     public static boolean permissionDenied = false;
 
     // Geofence constants
-    public static final float GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION = (float) 50;
-    public static final float GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT = (float) 15;
+    public static final float GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION = (float) 100;
+    public static final float GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT = (float) 12;
 
     // Geofence Types
     public static final String CROSSWALK_DETECTION_GEOFENCE = "CROSSWALK_DETECTION";
