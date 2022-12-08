@@ -33,8 +33,8 @@ public class Constants {
     public static boolean permissionDenied = false;
 
     // Geofence constants
-    public static final float GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION = (float) 100;
-    public static final float GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT = (float) 12;
+    public static final float GEOFENCE_RADIUS_FOR_CROSSWALK_DETECTION = (float) 35;
+    public static final float GEOFENCE_RADIUS_FOR_WALKING_STRAIGHT = (float) 20;
 
     // Geofence Types
     public static final String CROSSWALK_DETECTION_GEOFENCE = "CROSSWALK_DETECTION";
