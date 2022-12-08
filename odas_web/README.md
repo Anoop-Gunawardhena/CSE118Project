@@ -1,4 +1,4 @@
-# ODAS Studio
+# For our project we used ODAS Studio to capture audio eneergy of nearby objects
 A desktop user interface for the [ODAS](https://github.com/introlab/odas) library
 
 ![ODAS Studio main screen screenshot](/screenshots/main.png)
