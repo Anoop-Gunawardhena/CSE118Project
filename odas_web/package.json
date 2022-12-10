@@ -1,0 +1,30 @@
+{
+  "name": "odas_studio",
+  "version": "0.3.0",
+  "description": "A desktop GUI for the ODAS library",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "./node_modules/.bin/electron-rebuild"
+  },
+  "author": "Cedric Godin",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^5.0.13",
+    "electron-rebuild": "^1.8.5"
+  },
+  "dependencies": {
+    "@google-cloud/speech": "^3.2.0",
+    "grpc": "^1.24.2",
+    "ip": "^1.1.5",
+    "mathjs": "^6.0.1",
+    "node-localstorage": "^1.3.1",
+    "systeminformation": "^4.9.0",
+    "wav": "^1.0.2",
+    "wav-file-info": "0.0.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/introlab/odas_web.git"
+  }
+}
